@@ -1,25 +1,18 @@
 <template>
   <div class="min-h-screen bg-gradient-to-b from-zinc-900 to-purple-900 flex flex-col items-center py-6">
-    <h1 class="text-3xl font-bold mb-6">Détails de l'image</h1>
+    <h1 class="text-3xl font-bold mb-6">Détails de l'image {{ imageId }}</h1>
 
-    <div v-if="loading" class="text-blue-500 font-medium">Chargement des détails...</div>
-    <div v-else-if="error" class="text-red-500 font-bold">Erreur : {{ error }}</div>
-    <div v-else v-if="image">
-      <h2 class="text-2xl font-bold">{{ image.title }}</h2>
-      <p class="text-sm text-gray-600 mb-4">{{ image.date }}</p>
-      <img
-          v-if="image.url"
-          :src="image.url"
-          :alt="image.title"
-          class="max-w-full rounded shadow-lg"
-      />
-      <p v-else class="text-red-500">Image non disponible</p>
+    <!-- Message d'erreur si l'API APOD ne fonctionne pas -->
+    <p v-if="!apodImage" class="text-red-500 mb-4">
+      Impossible de charger l'image depuis APOD. Une image locale est affichée à la place.
+    </p>
 
-      <div class="mt-6">
-        <h3 class="text-xl font-semibold">Description :</h3>
-        <p class="text-white">{{ image.explanation }}</p>
-      </div>
-    </div>
+    <!-- Afficher une image dynamique ou une image locale -->
+    <img
+        :src="apodImage || localImage"
+        alt="Image APOD ou locale"
+        class="max-w-full rounded shadow-lg"
+    />
 
     <div class="mt-6">
       <button
@@ -33,42 +26,47 @@
 </template>
 
 <script>
+import localImage from '../assets/image.jpg'; // Image locale pour le fallback
+
 export default {
   data() {
     return {
-      image: null,
-      loading: false,
-      error: null,
+      localImage: localImage, // Image locale pour le fallback
+      apodImage: null, // URL de l'image APOD
+      imageId: null, // Stockage de l'ID de la route
     };
   },
-  methods: {
-    async fetchImageDetails() {
-      const date = this.$route.params.id; // Récupère la date depuis les paramètres de l'URL
-      this.loading = true;
-      this.error = null;
+  created() {
+    // Récupérer l'ID depuis les paramètres de la route
+    this.imageId = this.$route.params.id;
 
+    // Exemple : récupérer les données depuis une API APOD
+    this.fetchAPODImage();
+  },
+  methods: {
+    goBack() {
+      this.$router.go(-1); // Retour à la page précédente
+    },
+    async fetchAPODImage() {
       try {
+        const apiKey = 'OaoL2R3XLRPyDy2jP9vylqA4sExqzwG0H3mXZma1';
         const response = await fetch(
-            `https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=${date}`
+            `https://api.nasa.gov/planetary/apod?api_key=${apiKey}&date=${this.imageId}`
         );
-        if (!response.ok) {
-          throw new Error(`Erreur API pour la date ${date}: ${response.statusText}`);
-        }
         const data = await response.json();
-        this.image = data; // Stocke les détails de l'image dans `image`
-      } catch (err) {
-        this.error = `Impossible de récupérer les détails : ${err.message}`;
-      } finally {
-        this.loading = false;
+
+        // Vérifier si l'API retourne une URL d'image
+        if (data.url) {
+          this.apodImage = data.url;
+        } else {
+          console.error('Aucune image retournée pour cette date.');
+          this.apodImage = null;
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération de l\'image APOD :', error);
+        this.apodImage = null;
       }
     },
-    goBack() {
-      // Naviguer vers la page précédente
-      this.$router.go(-1);
-    },
-  },
-  mounted() {
-    this.fetchImageDetails(); // Récupère les détails de l'image au montage du composant
   },
 };
 </script>
